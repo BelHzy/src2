@@ -1,0 +1,22 @@
+metadata:
+    name: apps
+    format: "Lava-Test-Shell Test Definition 1.0"
+    description: "Run tests from apps suite on Ubuntu"
+    maintainer:
+	- belhzy@163.com
+    os:
+        - ubuntu
+    scope:
+        - functional
+    devices:
+        - d02
+    environment:
+        - lava-test-shell
+
+install:
+    deps:
+
+run:
+    steps:
+        - "./apps.sh"
+
