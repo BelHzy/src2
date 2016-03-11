@@ -13,6 +13,10 @@ metadata:
     environment:
         - lava-test-shell
 
+install:
+    deps:
+        - expect
+
 run:
     steps:
         - "./apps.sh"
