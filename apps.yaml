@@ -3,7 +3,7 @@ metadata:
     format: "Lava-Test-Shell Test Definition 1.0"
     description: "Run tests from apps suite on Ubuntu"
     maintainer:
-	- belhzy@163.com
+        - belhzy@163.com
     os:
         - ubuntu
     scope:
