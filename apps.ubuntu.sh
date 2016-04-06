@@ -19,7 +19,7 @@ appKey=update
 sCmd="${sCmdInstall} ${sCmdArgs} ${appKey}"
 ExpectBashExec "${sCmd}"
 iRt1=$?
-exit 1
+exit 0
 
 ${sCmdInstall} ${sCmdArgs} install samba;
 useradd smb;
