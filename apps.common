@@ -1,0 +1,316 @@
+
+echo "${0}" |grep -q "[-]*bash"
+if [ $? -eq 0 ]; then
+    g_drPro=${PWD}
+    g_FILE=./apps.common
+    #declare +r g_defFlCfG
+    unset g_defFlCfG
+    #echo "${LINENO}[${g_defFlCfG}]"
+else
+    g_drPro=
+    g_FILE=$(basename ${0})
+fi
+
+if [ "${g_defFlCommon}" == "${g_FILE%%.*}.common" ]; then
+	return 100
+fi
+. $(dirname ${0})/${g_FILE%%.*}.cfg
+export g_defFlCommon=${g_FILE%%.*}.common
+printf "%s[%3s]%5s: Load[${g_defFlCommon}]\n" "${FUNCNAME[0]}" ${LINENO} "Info" 1>&2
+
+#####################
+#init
+export g_IFS0=${IFS}
+export g_IPPro=$(ip a |grep "inet[ \t]\+" |grep eth |sed "s/^[ \t]*inet[ \t]\+\([0-9\.]\+\).\+$/\1/")
+export g_Distributor=$(lsb_release -i |cut -d: -f2 |sed "s@^[ \t]\+@@;s@[ \t]\+\$@@")
+
+if [ "$(id -u)" -eq 0 ]; then
+    sp1=#
+else
+    sp1=$
+fi
+export PS1="[\u@\H:\w]${sp1} "
+export g_sLikeCmdLine="${USER}@${HOSTNAME}[^:]*:[^:#$]+${sp1}"
+
+export g_drTmp=~/tmp
+export g_flLog=${g_drTmp}/${g_FILE%.*}.log
+mkdir -p ${g_drTmp}
+if [ -f "${g_flLog}" ]; then
+    mv ${g_flLog} ${g_flLog}.bak
+fi
+
+export g_flList=$(echo "${g_flList}" |sed "/^[ \t]*#/d")
+export g_drLnd=/home/hezhongyan/del/work
+export g_sPattanOther=
+export g_sLikeKeyCmdRlt='Command Status'
+
+#####################
+#func
+Absolute2Dir()
+{
+    dr1=${1}
+    dr2=${2}
+    
+    echo "${dr2}" |grep -q "^/"
+    if [ $? -eq 0 ]; then
+        echo ${dr2}
+        return
+    fi
+
+    echo "${dr1}/${dr2}" |sed "s#/\./#/#g;s#//\+#/#g;s#/\.\$##g;"
+    return
+}
+export -f Absolute2Dir
+if [ -z "${g_drPro}" ]; then
+    g_drPro=$(Absolute2Dir "${PWD}" "$(dirname ${0})")
+fi
+
+ExpectBashExec()
+{
+    #ExpectBashExec "apt-get update"
+    sCmd=${1}
+    bExit=${2:-true}
+    sPwdPro=${3}
+    nUseTimePwd=${4:-0}
+
+    expect -c "
+        set timeout -1
+        set iRt1 1
+        set sPwd \"${sPwdPro}\"
+        set nUTPwd ${nUseTimePwd}
+        set n1 0
+        while {\${n1}<${g_nMaxTimes}} {
+            set nBash 0
+            spawn -noecho /bin/bash
+            expect {
+                -re \"\[Pp]assword\(\[ \t]\+\[^ \t]\+.*\|\):\" {
+                    if {\${nUTPwd}>0} {
+                        send \"\${sPwd}\r\"
+                        incr nUTPwd -1
+                        exp_continue
+                    } else {
+                        set iRt1 3
+                        send_tty \"\n\"
+                    }
+                }
+                -re \"Sorry, try again\\.\" {
+                    set nUTPwd 0
+                    set iRt1 3
+                    send_tty \"\n\"
+                }
+                ${g_sPattanOther}
+                #-re {Could not resolve host:} {
+                #    close
+                #    set iRt1 4
+                #}
+                #-re {E: Failed getting release file} {
+                #    close
+                #    set iRt1 4
+                #}
+                #-re {E: Couldn't download packages:} {
+                #    close
+                #    set iRt1 4
+                #}
+                #-re \"Unable to fetch some archive\" {
+                #    close
+                #    set iRt1 4
+                #}
+                #-re \"Some index files failed to download.\" {
+                #    close
+                #    set iRt1 4
+                #}
+                -re {${g_sLikeCmdLine}} {
+                    switch -ex \"\${nBash}\" {
+                        0 {
+                            incr nBash +1
+
+                            send {${sCmd}}
+                            send \n
+                            exp_continue
+                        }
+                        1 {
+                            #send_user \"${LINENO}\n\"
+                            incr nBash +1
+
+                            set iRt2 1
+                            send {iStatusCmdExit=\$?; echo \"[${g_sLikeKeyCmdRlt}: \\\$?=\${iStatusCmdExit}]\"; exit \${iStatusCmdExit};}
+                            send \n
+                            expect {
+                                -re {${g_sLikeKeyCmdRlt}: \\$\?=([0-9-]+)[^0-9-]*$} {
+                                    #send_user \\[\$expect_out(1,string)]\n
+                                    set iRt2 \$expect_out(1,string)
+                                }
+                                timeout {
+                                    send_user \"Get command exit status failed, please debugging here\\[${LINENO}]\n\"
+                                }
+                            }
+                            if {\${iRt2}==0} {
+                                set iRt1 0
+                            } else {
+                                set iRt1 5
+                            }
+                        }
+                        default {
+                            send_user \"not deal\\[\${nBash}]\n\"
+                            set iRt1 126
+                        }
+                    }
+                    #send_tty \"\n\"
+                }
+                #-re {\[.+] apache2} {
+                #    send \r
+                #    exp_continue
+                #}
+            }
+            switch -ex \"\${iRt1}\" {
+                0 {
+                    send_user \"\n\"
+                    break
+                }
+                4 - 5 {
+                    send_user \"\n\ntry it again after sleep 60s ...\n\"
+                    sleep 60
+                }
+                default {
+                    break
+                }
+            }
+            incr n1 +1
+        }
+        send_user \"while {\${n1}<${g_nMaxTimes}} times exit \${iRt1}\n\"
+        exit \${iRt1}
+    "
+    iRt1=$?
+    g_sPattanOther=
+    if [ ${iRt1} -ne 0 ]; then
+        printf "%s[%3s]%5s: ResultShow [${sCmd}: fail] [exit ${iRt1}]\n" "${FUNCNAME[0]}" ${LINENO} "Error"
+        ${bExit} && exit ${iRt1}
+    else
+        echo "test_case_id:device_read_perf-test_cmd units:MBperSecond measurement:t_read result:pass"
+        printf "%s[%3s]%5s: ResultShow [${sCmd}: pass] [exit ${iRt1}]\n" "${FUNCNAME[0]}" ${LINENO} "Info"
+    fi
+    return ${iRt1}
+}
+export -f ExpectBashExec
+
+TestCmd()
+{
+    sCmd=${1}
+
+    expect -c "
+        set timeout -1
+        set iRt1 1
+        set nBash 0
+        spawn -noecho /bin/bash
+        expect {
+            -re \"command not found\" {
+                close
+                set iRt1 40
+            }
+            -re {usage: ${sCmd}} {
+                close
+                set iRt1 0
+            }
+            -re {${sCmd}: [a-zA-Z \t]+ argument.} {
+                close
+                set iRt1 0
+            }
+            -re {Active Internet connections} {
+                close
+                set iRt1 0
+            }
+            -re {${sCmd}. is currently not installed} {
+                close
+                set iRt1 30
+            }
+            -re {error opening device} {
+                close
+                set iRt1 0
+            }
+            -re {[ \t]*[0-9]+[ \t]+[a-zA-Z0-9_/]+[ \t]+} {
+                close
+                set iRt1 0
+                send_tty \"\n\"
+            }
+            -re {listening on eth[0-9]+} {
+                close
+                set iRt1 0
+            }
+            -re {${g_sLikeCmdLine}} {
+                switch -ex \"\${nBash}\" {
+                    0 {
+                        incr nBash +1
+
+                        send {${sCmd}}
+                        send \n
+                        exp_continue
+                    }
+                    1 {
+                        #send_user \"${LINENO}\n\"
+                        incr nBash +1
+
+                        set iRt2 1
+                        send {iStatusCmdExit=\$?; echo \"[${g_sLikeKeyCmdRlt}: \\\$?=\${iStatusCmdExit}]\"; exit \${iStatusCmdExit};}
+                        send \n
+                        expect {
+                            -re {${g_sLikeKeyCmdRlt}: \\$\?=([0-9-]+)[^0-9-]*$} {
+                                #send_user \\[\$expect_out(1,string)]\n
+                                set iRt2 \$expect_out(1,string)
+                            }
+                        }
+                        if {\${iRt2}==0} {
+                            set iRt1 0
+                        } else {
+                            set iRt1 2
+                        }
+                    }
+                    default {
+                        send_user \"not deal\\[\${nBash}]\n\"
+                        set iRt1 5
+                    }
+                }
+                #send_tty \"\n\"
+            }
+        }
+        send_user \"exit \${iRt1}\n\"
+        exit \${iRt1}
+    "
+}
+export -f TestCmd
+
+SupportCmdTest()
+{
+    sCmds=$(echo "${g_sCmds}" |sed "/^[ \t]*#/d;s@^[ \t]\+@@;s@[ \t]\+\$@@;s@;@@")
+    rm -f ${g_drTmp}/error.log
+    rm -f ${g_drTmp}/have.log
+    IFS=$'\n'; for c2 in ${sCmds}; do IFS=${g_IFS0};
+        printf "%s[%3s]%5s: ${c2}\n" "${FUNCNAME[0]}" ${LINENO} "Info"
+        TestCmd "${c2}"
+        iRt3=$?
+        case ${iRt3} in
+        40)
+            echo "${c2}: not found" >>${g_drTmp}/error.log
+            ;;
+        30)
+            echo "${c2}: not installed" >>${g_drTmp}/error.log
+            ;;
+        0)
+            echo "${c2}" >>${g_drTmp}/have.log
+            ;;
+        *)
+            echo "${c2}: not sure [exit ${iRt3}]" >>${g_drTmp}/error.log
+            ;;
+        esac
+    IFS=$'\n'; done; IFS=${g_IFS0};
+}
+export -f SupportCmdTest
+
+#####################
+if false; then
+IFS=$'\n'; for f1 in ${g_flList}; do IFS=${g_IFS0};
+    printf "%s[%3s]%5s: ${f1}\n" "${FUNCNAME[0]}" ${LINENO} "Info"
+   #printf "%s[%3s]%5s: ${f1}\n" "${FUNCNAME[0]}" ${LINENO} "Error" 1>&2
+   #sed "s/^[ \t]*#\([ \t#]*[a-zA-Z_]\+[a-zA-Z_0-9]*[ \t]\{0,1\}\)[ \t]*=\([ \t]\{0,1\}\)[ \t]*/\1=\2/" ${f1}
+IFS=$'\n'; done; IFS=${g_IFS0};
+fi
+

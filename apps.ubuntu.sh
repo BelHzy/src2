@@ -1,10 +1,9 @@
 #!/bin/bash
 
-g_drCur=${PWD}
 g_FILE=$(basename ${0})
-. $(dirname ${0})/${g_FILE%%.*}.cfg
+. $(dirname ${0})/${g_FILE%%.*}.common
 
-g_drPro=$(Absolute2Dir "${g_drCur}" "$(dirname ${0})")
+g_drPro=$(Absolute2Dir "${PWD}" "$(dirname ${0})")
 g_FILE=$(basename ${0})
 
 #####################
@@ -15,6 +14,7 @@ sCmdArgs="-y"
 #do
 ##########
 #samba
+#http://zhukeqiang.blog.51cto.com/8692790/1385442
 appKey=update
 sCmd="${sCmdInstall} ${sCmdArgs} ${appKey}"
 ExpectBashExec "${sCmd}"

@@ -22,4 +22,5 @@ run:
         - "./apps.ubuntu.sh"
 
 parse:
-    pattern: "[ \t:]+ResultShow[ \t]*\\[(?P<test_case_id>[a-zA-Z_]+[a-zA-Z_0-9 -]*)[ \t]*:[ \t]*(?P<result>[a-zA-Z_0-9]+)\\]"
+    #pattern: "[ \t:]+ResultShow[ \t]*\\[(?P<test_case_id>[a-zA-Z_]+[a-zA-Z_0-9 -]*)[ \t]*:[ \t]*(?P<result>[a-zA-Z_0-9]+)\\]"
+    pattern: "^test_case_id:(?P<test_case_id>.*-*.+) units:(?P<units>.+) measurement:(?P<measurement>.+) result:(?P<result>\\w+)"
