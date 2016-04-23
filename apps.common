@@ -23,6 +23,7 @@ printf "%s[%3s]%5s: Load[${g_defFlCommon}]\n" "${FUNCNAME[0]}" ${LINENO} "Info" 
 export g_IFS0=${IFS}
 export g_IPPro=$(ip a |grep "inet[ \t]\+" |grep eth |sed "s/^[ \t]*inet[ \t]\+\([0-9\.]\+\).\+$/\1/")
 export g_Distributor=$(lsb_release -i |cut -d: -f2 |sed "s@^[ \t]\+@@;s@[ \t]\+\$@@")
+#opensuse cat /etc/os-release
 
 if [ "$(id -u)" -eq 0 ]; then
     sp1=#
@@ -183,12 +184,13 @@ ExpectBashExec()
     iRt1=$?
     g_sPattanOther=
     if [ ${iRt1} -ne 0 ]; then
-        printf "%s[%3s]%5s: ResultShow [${sCmd}: fail] [exit ${iRt1}]\n" "${FUNCNAME[0]}" ${LINENO} "Error"
+        printf "%s[%3s]%5s: test_case_id:${sCmd} units:apps measurement:install result:pass [exit ${iRt1}]\n" "${FUNCNAME[0]}" ${LINENO} "Info"
         ${bExit} && exit ${iRt1}
     else
-        echo "test_case_id:device_read_perf-test_cmd units:MBperSecond measurement:t_read result:pass"
-        printf "%s[%3s]%5s: ResultShow [${sCmd}: pass] [exit ${iRt1}]\n" "${FUNCNAME[0]}" ${LINENO} "Info"
+        #test_case_id:${sCmd} units:MBperSecond measurement:t_read result:pass"
+        printf "%s[%3s]%5s: test_case_id:${sCmd} units:apps measurement:install result:fail [exit ${iRt1}]\n" "${FUNCNAME[0]}" ${LINENO} "Error"
     fi
+
     return ${iRt1}
 }
 export -f ExpectBashExec
